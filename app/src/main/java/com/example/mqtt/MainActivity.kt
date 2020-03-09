@@ -13,16 +13,16 @@ import org.eclipse.paho.client.mqttv3.*
 
 
 class MainActivity : AppCompatActivity() {
-    var adapter : HistoryAdapter? = null
+    private var adapter : HistoryAdapter? = null
 
-    var mqttAndroidClient : MqttAndroidClient? = null
+    private var mqttAndroidClient : MqttAndroidClient? = null
 
-    val serverUri = "tcp::iot.eclipse.org:1883"
+    private val serverUri = "tcp://10.0.2.2:1883" // Emulator machine localhost
 
-    var clientId = "ExampleAndroidClient"
-    val subscriptionTopic = "exampleAndroidTopic"
-    val publishTopic = "exampleAndroidPublishTopic"
-    val publishMessage = "Hello Word!"
+    private var clientId = "ExampleAndroidClient"
+    private val subscriptionTopic = "exampleAndroidSubscriptionTopic"
+    private val publishTopic = "exampleAndroidPublishTopic"
+    private val publishMessage = "Hello Word!"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
 
         val mqttConnectOptions = MqttConnectOptions()
         mqttConnectOptions.isAutomaticReconnect = true
-        mqttConnectOptions.isCleanSession = false
+        mqttConnectOptions.isCleanSession = true
 
         try {
             mqttAndroidClient?.connect(mqttConnectOptions, null, object : IMqttActionListener {
@@ -131,32 +131,32 @@ class MainActivity : AppCompatActivity() {
                 }
             })
 
-            // THIS DOES NOT WORK!
-            mqttAndroidClient?.subscribe(subscriptionTopic, 0, object : IMqttMessageListener{
-                override fun messageArrived(topic: String?, message: MqttMessage?) {
-                    // message Arrived!
-                    System.out.println("Message: " + topic + " : " + message?.payload);
-                }
-            })
+            mqttAndroidClient?.subscribe(subscriptionTopic, 0
+            ) { topic, message ->
+                // message Arrived!
+                addToHistory("Message arrived: " + topic + " : " + message?.payload?.toString(Charsets.UTF_8));
+            }
         }
         catch (e : MqttException) {
-            println("Exception whilst subscribing")
+            println("Exception while subscribing")
             e.printStackTrace();
         }
     }
 
     private fun publishMessage() {
-        try {
-            val message = MqttMessage()
-            message.payload = publishMessage.toByteArray()
-            mqttAndroidClient?.publish(publishTopic, message)
-            addToHistory("Message published")
-            if (mqttAndroidClient?.isConnected != true) {
-                addToHistory("${mqttAndroidClient?.bufferedMessageCount} messages in buffer.")
+        if (mqttAndroidClient?.isConnected == true) {
+            try {
+                val message = MqttMessage()
+                message.payload = publishMessage.toByteArray()
+                mqttAndroidClient?.publish(publishTopic, message)
+                addToHistory("Message published")
+                if (mqttAndroidClient?.isConnected != true) {
+                    addToHistory("${mqttAndroidClient?.bufferedMessageCount} messages in buffer.")
+                }
+            } catch(e : MqttException) {
+                println("Error Publishing: ${e.message}")
+                e.printStackTrace()
             }
-        } catch(e : MqttException) {
-            println("Error Publishing: ${e.message}")
-            e.printStackTrace()
         }
     }
 }
